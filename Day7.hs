@@ -9,18 +9,30 @@ import Data.Function.Memoize
 type FuncRef = String
 type ValRef = String
 type Val = Word16
+type Circuit = Map.Map ValRef Input
+type Cache = Map.Map ValRef Word16
 
 data Input = Val ValRef | Fun FuncRef ValRef | BiFun FuncRef ValRef ValRef
   deriving Show
 
 fix f = x where x = f x
 
-calc :: Map.Map ValRef Input -> Input -> Word16
-calc circ v = fix calc' $ v
+calc :: Circuit -> Input -> Word16
+calc circ v = fst $ calc' (Map.fromList []) v
   where
-    calc' rec (Val a) = maybe (trace a $ rec (circ Map.! a)) id $ readMaybe a
-    calc' rec (Fun f a) = apply f $ [rec (Val a)]
-    calc' rec (BiFun f a a') = apply f $ map (\x-> rec (Val x)) [a,a'] -- ugh this should be a tuple (how to map?)
+    calc' :: Cache -> Input -> (Word16, Cache)
+    calc' cache (Val a) = maybe (get a) id $ readMaybe a
+      where
+        get :: ValRef -> (Word16, Cache)
+        get a = maybe (set a) (\v -> (v,cache)) $ Map.lookup a cache
+        set :: ValRef -> (Word16, Cache)
+        set a = let (v, c') = (trace a $ calc' cache (circ Map.! a)) in (v, Map.insert a v c')
+    calc' cache (Fun f a) = let (v,c') = calc' cache (Val a) in (apply f [v], c')
+    calc' cache (BiFun f a a') = (apply f vals, c'')
+      where
+        vals = [v1, v2]
+        (v1, c') = calc' cache (Val a) -- (how to map?)
+        (v2, c'') = calc' c' (Val a') -- (how to map?)
 
 apply :: String -> [Word16] -> Word16
 apply "OR" [a,a'] = a .|. a'
