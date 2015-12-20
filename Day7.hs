@@ -21,7 +21,7 @@ calc :: Circuit -> Input -> Word16
 calc circ v = fst $ calc' (Map.fromList []) v
   where
     calc' :: Cache -> Input -> (Word16, Cache)
-    calc' cache (Val a) = maybe (get a) id $ readMaybe a
+    calc' cache (Val a) = maybe (get a) (\x->(x,cache)) $ readMaybe a
       where
         get :: ValRef -> (Word16, Cache)
         get a = maybe (set a) (\v -> (v,cache)) $ Map.lookup a cache
@@ -51,4 +51,5 @@ interpretLine l' = i l
 
 main = do
   circuit <- fmap (Map.fromList . map interpretLine . lines) getContents  -- h8 this
-  putStrLn.show $ calc circuit (Val "a")
+  let circ2 = Map.insert "b" (Val "16076") circuit
+  putStrLn.show $ calc circ2 (Val "a")
